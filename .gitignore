@@ -1,0 +1,6 @@
+.DS_Store
+*.o
+*.a
+sample_data.txt
+test
+matlab/*.mex*
