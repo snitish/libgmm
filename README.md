@@ -2,11 +2,17 @@
 A library for training Gaussian Mixture Models written in C.
 
 ### How to build
-To build the library, navigate to the libgmm directory using the terminal and type
-```
-make
-```
-To also build the MATLAB wrapper, run matlab/make.m from the MATLAB console.
+- To enable OpenMP, add the '-fopenmp' option to line 2 of Makefile
+
+ ```
+ CFLAGS = -std=c99 -O3 -fopenmp
+ ```
+- To build the library, navigate to the libgmm directory using the terminal and type
+
+ ```
+ make
+ ```
+- To also build the MATLAB wrapper, run matlab/make.m from the MATLAB console.
 
 ### Usage
 - Using C API
