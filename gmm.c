@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
+#ifdef _OPENMP
+ #include <omp.h>
+#endif
 
 #ifdef MEX_COMPILE
  #include "mex.h"
@@ -249,6 +252,7 @@ double _sgmm_compute_membership_prob(SGMM *gmm, const double * const *X, int N, 
 	double llh = 0;
 
 	// Populate the matrix with log(P(k | xt, gmm))
+	#pragma omp parallel for reduction(+:llh)
 	for (int t = 0; t < N; t++)
 	{
 		double max = -1;
@@ -277,30 +281,20 @@ double _sgmm_compute_membership_prob(SGMM *gmm, const double * const *X, int N, 
 
 void _sgmm_update_params(SGMM *gmm, const double * const *X, int N, double **P)
 {
+	#pragma omp parallel for
 	for (int k=0; k<gmm->M; k++)
 	{
-		// Compute (P[k][0] + P[k][1] + ... + P[k][N-1])
 		double sum_P_k = 0;
-		for (int t=0; t<N; t++)
-			sum_P_k += P[k][t];
-
-		// Compute ( ||x[0]||^2 P[k][0] + ... + ||x[N-1]||^2 P[k][N-1])
 		double sum_xxP_k = 0;
-		for (int t=0; t<N; t++)
-			sum_xxP_k += _sgmm_vec_dot_prod(X[t], X[t], gmm->D) * P[k][t];
-
-		// Update rule for weights: 
-		gmm->weights[k] = sum_P_k/N;
-		
-		// Update rule for means:
 		memset(gmm->means[k], 0, gmm->D*sizeof(int));
 		for (int t=0; t<N; t++)
 		{
+			sum_P_k += P[k][t];
+			sum_xxP_k += _sgmm_vec_dot_prod(X[t], X[t], gmm->D) * P[k][t];
 			_sgmm_vec_add(gmm->means[k], X[t], 1, P[k][t], gmm->D);
 		}
 		_sgmm_vec_divide_by_scalar(gmm->means[k], sum_P_k, gmm->D);
-
-		// Update rule for vars
+		gmm->weights[k] = sum_P_k/N;
 		gmm->vars[k] = (sum_xxP_k/sum_P_k - _sgmm_vec_dot_prod(gmm->means[k], gmm->means[k], gmm->D))/gmm->D;
 		if (gmm->vars[k] < gmm->reg)
 			gmm->vars[k] = gmm->reg;
@@ -309,14 +303,18 @@ void _sgmm_update_params(SGMM *gmm, const double * const *X, int N, double **P)
 
 double _sgmm_log_gaussian_pdf(const double *x, const double *mean, double var, int D)
 {
-	return -0.5 * log(2*PI) - 0.5 * D * log(var) - pow(_sgmm_vec_l2_dist(x, mean, D), 2)/(2*var);
+	double tmp = _sgmm_vec_l2_dist(x, mean, D);
+	return -0.5 * log(2*PI) - 0.5 * D * log(var) - tmp*tmp/(2*var);
 }
 
 double _sgmm_vec_l2_dist(const double *x, const double *y, int D)
 {
 	double l2_dist_sq = 0;
 	for (int i=0; i<D; i++)
-		l2_dist_sq += pow(x[i] - y[i], 2);
+	{
+		double tmp = x[i] - y[i];
+		l2_dist_sq += tmp*tmp;
+	}
 	return(sqrt(l2_dist_sq));
 }
 

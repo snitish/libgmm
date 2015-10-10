@@ -1,12 +1,14 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <string.h>
 #include "gmm.h"
 
 int main()
 {
 	const char *data_filenm = "sample_data.txt";
-	const int gmm_num_components = 1;
+	const int gmm_num_components = 3;
 
 	// Load data from file
 	FILE *fp = fopen(data_filenm, "r");
@@ -52,10 +54,14 @@ int main()
 
 	// Train the SGMM
 	SGMM *gmm = sgmm_new(gmm_num_components, D);
-	sgmm_set_convergence_tol(gmm, 0.000001);
-	sgmm_set_regularization_value(gmm, 0.000001);
+	sgmm_set_convergence_tol(gmm, 1e-6);
+	sgmm_set_regularization_value(gmm, 1e-6);
+	struct timeval st, en;
+	gettimeofday(&st, NULL);
 	sgmm_fit(gmm, X, N);
-	sgmm_print_params(gmm);
+	gettimeofday(&en, NULL);
+	printf("Time elapsed = %lf s\n", (en.tv_sec-st.tv_sec) + (1e-6)*(en.tv_usec-st.tv_usec));
+	//sgmm_print_params(gmm);
 	sgmm_free(gmm);
 
 	// Free data
