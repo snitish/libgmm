@@ -26,52 +26,75 @@
 
 #define PI 3.14159265359
 
-SGMM* sgmm_new(int M, int D)
+GMM* gmm_new(int M, int D, const char *cov_type)
 {
-	SGMM *gmm = (SGMM *) malloc(sizeof(SGMM));
+	GMM *gmm = malloc(sizeof(GMM));
+
+	// Set GMM settings
 	gmm->M = M;
 	gmm->D = D;
 	gmm->num_max_iter = 1000;
 	gmm->converged = 0;
 	gmm->tol = 0.000001;
 	gmm->reg = 0.001;
-	gmm->weights = (double *) malloc(gmm->M*sizeof(double));
-	gmm->means = (double **) malloc(gmm->M*sizeof(double *));
+	gmm->init_method = RANDOM;
+	if (strcmp(cov_type, "diagonal") == 0)
+		gmm->cov_type = DIAGONAL;
+	else if (strcmp(cov_type, "spherical") == 0)
+		gmm->cov_type = SPHERICAL;
+	else
+		gmm->cov_type = DIAGONAL;
+
+	// Allocate memory for GMM parameters
+	gmm->weights = malloc(gmm->M*sizeof(double));
+	gmm->means = malloc(gmm->M*sizeof(double *));
+	gmm->covars = malloc(gmm->M*sizeof(double *));
 	for (int k=0; k<gmm->M; k++)
-		gmm->means[k] = (double *) malloc(gmm->D*sizeof(double));
-	gmm->vars = (double *) malloc(gmm->M*sizeof(double));
+	{
+		gmm->means[k] = malloc(gmm->D*sizeof(double));
+		if (gmm->cov_type == DIAGONAL)
+			gmm->covars[k] = malloc(gmm->D*sizeof(double));
+		else if (gmm->cov_type == SPHERICAL)
+			gmm->covars[k] = malloc(1*sizeof(double));
+	}
+
 	return gmm;
 }
 
-void sgmm_set_max_iter(SGMM *gmm, int num_max_iter)
+void gmm_set_max_iter(GMM *gmm, int num_max_iter)
 {
 	gmm->num_max_iter = num_max_iter;
 }
 
-void sgmm_set_convergence_tol(SGMM *gmm, double tol)
+void gmm_set_convergence_tol(GMM *gmm, double tol)
 {
 	gmm->tol = tol;
 }
 
-void sgmm_set_regularization_value(SGMM *gmm, double reg)
+void gmm_set_regularization_value(GMM *gmm, double reg)
 {
 	gmm->reg = reg;
 }
 
-void sgmm_set_initialization_method(SGMM *gmm, const char *method)
+void gmm_set_initialization_method(GMM *gmm, const char *method)
 {
-	strcpy(gmm->init_method, method);
+	if (strcmp(method, "random") == 0)
+		gmm->init_method = RANDOM;
+	else if (strcmp(method, "kmeans") == 0)
+		gmm->init_method = KMEANS;
+	else
+		gmm->init_method = RANDOM;
 }
 
-void sgmm_fit(SGMM *gmm, const double * const *X, int N)
+void gmm_fit(GMM *gmm, const double * const *X, int N)
 {
-	// Initialize SGMM parameters
-	_sgmm_init_params(gmm, X, N);
+	// Initialize GMM parameters
+	_gmm_init_params(gmm, X, N);
 
 	// Allocate memory for storing membership probabilities P(k | x_t)
-	double **P_k_giv_xt = (double **) malloc(gmm->M*sizeof(double *));
+	gmm->P_k_giv_xt = malloc(gmm->M*sizeof(double *));
 	for (int k = 0; k < gmm->M; k++)
-		P_k_giv_xt[k] = (double *) malloc(N*sizeof(double));
+		gmm->P_k_giv_xt[k] = malloc(N*sizeof(double));
 
 	// EM iterations
 	double llh = 0, llh_prev = 0;
@@ -79,7 +102,7 @@ void sgmm_fit(SGMM *gmm, const double * const *X, int N)
 	{
 		// Perform one EM step
 		llh_prev = llh;
-		llh = _sgmm_em_step(gmm, X, N, P_k_giv_xt);
+		llh = _gmm_em_step(gmm, X, N);
 		//if (i_iter%20 == 0)
 		IPrintf("Iter = %d, LLH = %lf\n", i_iter+1, llh);
 
@@ -94,32 +117,32 @@ void sgmm_fit(SGMM *gmm, const double * const *X, int N)
 
 	// Free memory used for storing membership probabilities
 	for (int k = 0; k < gmm->M; k++)
-		free(P_k_giv_xt[k]);
-	free(P_k_giv_xt);
+		free(gmm->P_k_giv_xt[k]);
+	free(gmm->P_k_giv_xt);
 }
 
 // TODO: Other initialization methods
-void _sgmm_init_params(SGMM *gmm, const double * const *X, int N)
+void _gmm_init_params(GMM *gmm, const double * const *X, int N)
 {
-	if (strcmp(gmm->init_method, "random") == 0)
+	if (gmm->init_method == RANDOM)
 	{
 		// Random initialization
-		_sgmm_init_params_random(gmm, X, N);
+		_gmm_init_params_random(gmm, X, N);
 	}
-	else if (strcmp(gmm->init_method, "kmeans") == 0)
+	else if (gmm->init_method == KMEANS)
 	{
 		// K-means initialization
-		_sgmm_init_params_kmeans(gmm, X, N);
+		_gmm_init_params_kmeans(gmm, X, N);
 	}
 	else
 	{
 		// Default is random initialization
-		_sgmm_init_params_random(gmm, X, N);
+		_gmm_init_params_random(gmm, X, N);
 	}
 }
 
 // TODO: Unique sampling of data points for initializing component means
-void _sgmm_init_params_random(SGMM *gmm, const double * const *X, int N)
+void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 {
 	// Initialize means to randomly chosen samples
 	srand(time(NULL));
@@ -134,24 +157,42 @@ void _sgmm_init_params_random(SGMM *gmm, const double * const *X, int N)
 		gmm->weights[k] += 1.0/gmm->M;
 	
 	// Initialize component variances to data variance
-	double *mean = (double *) malloc(gmm->D*sizeof(double));
+	double *mean = malloc(gmm->D*sizeof(double));
 	for (int t=0; t<N; t++)
-		_sgmm_vec_add(mean, X[t], 1, 1, gmm->D);
-	_sgmm_vec_divide_by_scalar(mean, N, gmm->D);
-	double var = 0;
-	for (int t=0; t<N; t++)
-		var += pow(_sgmm_vec_l2_dist(X[t], mean, gmm->D), 2);
-	var = var/(N*gmm->D);
-	for (int k=0; k<gmm->M; k++)
-		gmm->vars[k] = var;
+		_gmm_vec_add(mean, X[t], 1, 1, gmm->D);
+	_gmm_vec_divide_by_scalar(mean, N, gmm->D);
+	if (gmm->cov_type == DIAGONAL)
+	{
+		double *vars = malloc(gmm->D*sizeof(double));
+		for (int i=0; i<gmm->D; i++)
+		{
+			vars[i] = 0;
+			for (int t=0; t<N; t++)
+				vars[i] += _gmm_pow2(X[t][i] - mean[i]);
+			vars[i] = vars[i]/N;
+		}
+		for (int k=0; k<gmm->M; k++)
+			memcpy(gmm->covars[k], vars, gmm->D*sizeof(double));
+		free(vars);
+	}
+	else if (gmm->cov_type == SPHERICAL)
+	{
+		double var = 0;
+		for (int t=0; t<N; t++)
+			var += pow(_gmm_vec_l2_dist(X[t], mean, gmm->D), 2);
+		var = var/(N*gmm->D);
+		for (int k=0; k<gmm->M; k++)
+			gmm->covars[k][0] = var;	
+	}
 
 	// Fre memory used for storing mean
 	free(mean);
 }
 
+// TODO: Handle empty clusters in K-means
 // TODO: Unique sampling of data points for initializing component means
 // TODO: Make K-means more efficient
-void _sgmm_init_params_kmeans(SGMM *gmm, const double * const *X, int N)
+void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
 {
 	const int num_iter = 10;
 
@@ -164,7 +205,7 @@ void _sgmm_init_params_kmeans(SGMM *gmm, const double * const *X, int N)
 	}
 
 	// K-means iterative algorithm
-	int *associations = (int *) malloc(N*sizeof(int));
+	int *associations = malloc(N*sizeof(int));
 	for (int i_iter = 0; i_iter < num_iter; i_iter++)
 	{
 		IPrintf(".");
@@ -172,11 +213,11 @@ void _sgmm_init_params_kmeans(SGMM *gmm, const double * const *X, int N)
 		// Find assiciation of each data point
 		for (int t = 0; t < N; t++)
 		{
-			double min_dist = _sgmm_vec_l2_dist(X[t], gmm->means[0], gmm->D);
+			double min_dist = _gmm_vec_l2_dist(X[t], gmm->means[0], gmm->D);
 			associations[t] = 0;
 			for (int k=1; k<gmm->M; k++)
 			{
-				double dist = _sgmm_vec_l2_dist(X[t], gmm->means[k], gmm->D);
+				double dist = _gmm_vec_l2_dist(X[t], gmm->means[k], gmm->D);
 				if (dist < min_dist)
 				{
 					min_dist = dist;
@@ -195,10 +236,10 @@ void _sgmm_init_params_kmeans(SGMM *gmm, const double * const *X, int N)
 				if (associations[t] == k)
 				{
 					nk++;
-					_sgmm_vec_add(gmm->means[k], X[t], 1, 1, gmm->D);
+					_gmm_vec_add(gmm->means[k], X[t], 1, 1, gmm->D);
 				}
 			}
-			_sgmm_vec_divide_by_scalar(gmm->means[k], nk, gmm->D);
+			_gmm_vec_divide_by_scalar(gmm->means[k], nk, gmm->D);
 		}
 	}
 	IPrintf("\n");
@@ -212,42 +253,63 @@ void _sgmm_init_params_kmeans(SGMM *gmm, const double * const *X, int N)
 	for (int k=0; k<gmm->M; k++)
 	{
 		int nk = 0;
-		gmm->vars[k] = 0;
+		if (gmm->cov_type == SPHERICAL)
+			gmm->covars[k][0] = 0;
+		else if (gmm->cov_type == DIAGONAL)
+			memset(gmm->covars[k], 0, gmm->D*sizeof(double));
 		for (int t=0; t<N; t++)
 		{
 			if (associations[t] == k)
 			{
 				nk++;
-				gmm->vars[k] += pow(_sgmm_vec_l2_dist(X[t], gmm->means[k], gmm->D), 2);
+				if (gmm->cov_type == SPHERICAL)
+					gmm->covars[k][0] += _gmm_pow2(_gmm_vec_l2_dist(X[t], gmm->means[k], gmm->D));
+				else if (gmm->cov_type == DIAGONAL)
+				{
+					for (int i=0; i<gmm->D; i++)
+						gmm->covars[k][i] += _gmm_pow2(X[t][i] - gmm->means[k][i]);
+				}
 			}
 		}
-		gmm->vars[k] = gmm->vars[k]/(nk*gmm->D);
-		if (gmm->vars[k] < gmm->reg)
-			gmm->vars[k] = gmm->reg;
+		if (gmm->cov_type == SPHERICAL)
+		{	
+			gmm->covars[k][0] = gmm->covars[k][0]/(nk*gmm->D);
+			if (gmm->covars[k][0] < gmm->reg)
+				gmm->covars[k][0] = gmm->reg;
+		}
+		else if (gmm->cov_type == DIAGONAL)
+		{
+			_gmm_vec_divide_by_scalar(gmm->covars[k], nk, gmm->D);
+			for (int i=0; i<gmm->D; i++)
+			{
+				if (gmm->covars[k][i] < gmm->reg)
+					gmm->covars[k][i] = gmm->reg;
+			}
+		}
 	}
 
 	// Fre memory used for storing associations
 	free(associations);
 }
 
-double _sgmm_em_step(SGMM *gmm, const double * const *X, int N, double **P_k_giv_xt)
+double _gmm_em_step(GMM *gmm, const double * const *X, int N)
 {
 	double llh;
 
 	/* ---------------------------------------------- Expectation step */
 	
 	// Compute membership probabilities
-	llh = _sgmm_compute_membership_prob(gmm, X, N, P_k_giv_xt);
+	llh = _gmm_compute_membership_prob(gmm, X, N);
 
 	/* --------------------------------------------- Maximization step */
 
 	// Update GMM parameters
-	_sgmm_update_params(gmm, X, N, P_k_giv_xt);
+	_gmm_update_params(gmm, X, N);
 
 	return llh;
 }
 
-double _sgmm_compute_membership_prob(SGMM *gmm, const double * const *X, int N, double **P)
+double _gmm_compute_membership_prob(GMM *gmm, const double * const *X, int N)
 {
 	double llh = 0;
 
@@ -258,19 +320,19 @@ double _sgmm_compute_membership_prob(SGMM *gmm, const double * const *X, int N, 
 		double max = -1;
 		for (int k = 0; k < gmm->M; k++)
 		{
-			P[k][t] = log(gmm->weights[k]) + _sgmm_log_gaussian_pdf(X[t], gmm->means[k], gmm->vars[k], gmm->D);
-			if (P[k][t] > max)
-				max = P[k][t];
+			gmm->P_k_giv_xt[k][t] = log(gmm->weights[k]) + _gmm_log_gaussian_pdf(X[t], gmm->means[k], gmm->covars[k], gmm->D, gmm->cov_type);
+			if (gmm->P_k_giv_xt[k][t] > max)
+				max = gmm->P_k_giv_xt[k][t];
 		}
 
 		double llh_t = 0;
 		for (int k=0; k<gmm->M; k++)
-			llh_t += exp(P[k][t] - max);
+			llh_t += exp(gmm->P_k_giv_xt[k][t] - max);
 		llh_t = max + log(llh_t);
 
 		for (int k = 0; k < gmm->M; k++)
 		{
-			P[k][t] = exp(P[k][t] - llh_t);
+			gmm->P_k_giv_xt[k][t] = exp(gmm->P_k_giv_xt[k][t] - llh_t);
 		}
 
 		llh += llh_t/N;
@@ -279,58 +341,102 @@ double _sgmm_compute_membership_prob(SGMM *gmm, const double * const *X, int N, 
 	return llh;
 }
 
-void _sgmm_update_params(SGMM *gmm, const double * const *X, int N, double **P)
+void _gmm_update_params(GMM *gmm, const double * const *X, int N)
 {
-	#pragma omp parallel for
-	for (int k=0; k<gmm->M; k++)
+	if (gmm->cov_type == SPHERICAL)
 	{
-		double sum_P_k = 0;
-		double sum_xxP_k = 0;
-		memset(gmm->means[k], 0, gmm->D*sizeof(int));
-		for (int t=0; t<N; t++)
+		#pragma omp parallel for
+		for (int k=0; k<gmm->M; k++)
 		{
-			sum_P_k += P[k][t];
-			sum_xxP_k += _sgmm_vec_dot_prod(X[t], X[t], gmm->D) * P[k][t];
-			_sgmm_vec_add(gmm->means[k], X[t], 1, P[k][t], gmm->D);
+			double sum_P_k = 0;
+			double sum_xxP_k = 0;
+			memset(gmm->means[k], 0, gmm->D*sizeof(double));
+			for (int t=0; t<N; t++)
+			{
+				sum_P_k += gmm->P_k_giv_xt[k][t];
+				sum_xxP_k += _gmm_vec_dot_prod(X[t], X[t], gmm->D) * gmm->P_k_giv_xt[k][t];
+				_gmm_vec_add(gmm->means[k], X[t], 1, gmm->P_k_giv_xt[k][t], gmm->D);
+			}
+			_gmm_vec_divide_by_scalar(gmm->means[k], sum_P_k, gmm->D);
+			gmm->weights[k] = sum_P_k/N;
+			gmm->covars[k][0] = (sum_xxP_k/sum_P_k - _gmm_vec_dot_prod(gmm->means[k], gmm->means[k], gmm->D))/gmm->D;
+			if (gmm->covars[k][0] < gmm->reg)
+				gmm->covars[k][0] = gmm->reg;
+		}	
+	}
+	else if (gmm->cov_type == DIAGONAL)
+	{
+		#pragma omp parallel for
+		for (int k=0; k<gmm->M; k++)
+		{
+			double sum_P_k = 0;
+			memset(gmm->means[k], 0, gmm->D*sizeof(double));
+			for (int t=0; t<N; t++)
+			{
+				sum_P_k += gmm->P_k_giv_xt[k][t];
+				_gmm_vec_add(gmm->means[k], X[t], 1, gmm->P_k_giv_xt[k][t], gmm->D);
+			}
+			gmm->weights[k] = sum_P_k/N;
+			_gmm_vec_divide_by_scalar(gmm->means[k], sum_P_k, gmm->D);
+			
+			memset(gmm->covars[k], 0, gmm->D*sizeof(double));
+			for (int t=0; t<N; t++)
+			{
+				for (int i=0; i<gmm->D; i++)
+					gmm->covars[k][i] += gmm->P_k_giv_xt[k][t]*_gmm_pow2(X[t][i] - gmm->means[k][i]);
+			}
+			_gmm_vec_divide_by_scalar(gmm->covars[k], sum_P_k, gmm->D);
+			for (int i=0; i<gmm->D; i++)
+			{
+				if (gmm->covars[k][i] < gmm->reg)
+					gmm->covars[k][i] = gmm->reg;
+			}
 		}
-		_sgmm_vec_divide_by_scalar(gmm->means[k], sum_P_k, gmm->D);
-		gmm->weights[k] = sum_P_k/N;
-		gmm->vars[k] = (sum_xxP_k/sum_P_k - _sgmm_vec_dot_prod(gmm->means[k], gmm->means[k], gmm->D))/gmm->D;
-		if (gmm->vars[k] < gmm->reg)
-			gmm->vars[k] = gmm->reg;
 	}
 }
 
-double _sgmm_log_gaussian_pdf(const double *x, const double *mean, double var, int D)
+// TODO: Pre-compute det of covariance matrix
+double _gmm_log_gaussian_pdf(const double *x, const double *mean, const double *covar, int D, CovType cov_type)
 {
-	double tmp = _sgmm_vec_l2_dist(x, mean, D);
-	return -0.5 * log(2*PI) - 0.5 * D * log(var) - tmp*tmp/(2*var);
+	double result = 0;
+	if (cov_type == SPHERICAL)
+		result = -0.5 * D * log(2*PI*covar[0]) - _gmm_pow2(_gmm_vec_l2_dist(x, mean, D))/(2*covar[0]);
+	else if (cov_type == DIAGONAL)
+	{
+		double det = 1;
+		for (int i=0; i<D; ++i)
+			det *= covar[i];
+
+		result = -0.5 * D * log(2*PI) - 0.5 * log(det);
+		for (int i=0; i<D; ++i)
+			result -= _gmm_pow2(x[i] - mean[i])/(2*covar[i]);
+	}
+	return result;
 }
 
-double _sgmm_vec_l2_dist(const double *x, const double *y, int D)
+double _gmm_vec_l2_dist(const double *x, const double *y, int D)
 {
 	double l2_dist_sq = 0;
 	for (int i=0; i<D; i++)
 	{
-		double tmp = x[i] - y[i];
-		l2_dist_sq += tmp*tmp;
+		l2_dist_sq += _gmm_pow2(x[i] - y[i]);
 	}
 	return(sqrt(l2_dist_sq));
 }
 
-void _sgmm_vec_add(double *x, const double *y, double a, double b, int D)
+void _gmm_vec_add(double *x, const double *y, double a, double b, int D)
 {
 	for (int i=0; i<D; i++)
 		x[i] = a*x[i] + b*y[i];
 }
 
-void _sgmm_vec_divide_by_scalar(double *x, double a, int D)
+void _gmm_vec_divide_by_scalar(double *x, double a, int D)
 {
 	for (int i=0; i<D; i++)
 		x[i] = x[i]/a;
 }
 
-double _sgmm_vec_dot_prod(const double *x, const double *y, int D)
+double _gmm_vec_dot_prod(const double *x, const double *y, int D)
 {
 	double prod = 0;
 	for (int i=0; i<D; i++)
@@ -338,7 +444,12 @@ double _sgmm_vec_dot_prod(const double *x, const double *y, int D)
 	return prod;
 }
 
-void sgmm_print_params(const SGMM *gmm)
+double _gmm_pow2(double x)
+{
+	return x*x;
+}
+
+void gmm_print_params(const GMM *gmm)
 {
 	for (int k=0; k<gmm->M; k++)
 	{
@@ -351,18 +462,32 @@ void sgmm_print_params(const SGMM *gmm)
 				IPrintf("%lf, ", gmm->means[k][i]);
 			IPrintf("\n");
 		}
-		IPrintf("Var: %lf\n", gmm->vars[k]);
+		if (gmm->cov_type == SPHERICAL)
+			IPrintf("Var: %lf\n", gmm->covars[k][0]);
+		else if (gmm->cov_type == DIAGONAL)
+		{
+			IPrintf("Var: ");
+			int i=0;
+			for (; i<5 && i<gmm->D; i++)
+				IPrintf("%lf, ", gmm->covars[k][i]);
+			if (i < gmm->D)
+				IPrintf("...");
+			IPrintf("\n");
+		}
 		IPrintf("\n");
 	}
 }
 
-void sgmm_free(SGMM *gmm)
+void gmm_free(GMM *gmm)
 {
 	free(gmm->weights);
 	for (int k=0; k<gmm->M; k++)
+	{	
 		free(gmm->means[k]);
+		free(gmm->covars[k]);
+	}
 	free(gmm->means);
-	free(gmm->vars);
+	free(gmm->covars);
 	free(gmm);
 }
 

@@ -53,16 +53,17 @@ int main()
 	fclose(fp);
 
 	// Train the SGMM
-	SGMM *gmm = sgmm_new(gmm_num_components, D);
-	sgmm_set_convergence_tol(gmm, 1e-6);
-	sgmm_set_regularization_value(gmm, 1e-6);
+	GMM *gmm = gmm_new(gmm_num_components, D, "diagonal");
+	gmm_set_convergence_tol(gmm, 1e-6);
+	gmm_set_regularization_value(gmm, 1e-6);
+	gmm_set_initialization_method(gmm, "random");
 	struct timeval st, en;
 	gettimeofday(&st, NULL);
-	sgmm_fit(gmm, X, N);
+	gmm_fit(gmm, X, N);
 	gettimeofday(&en, NULL);
 	printf("Time elapsed = %lf s\n", (en.tv_sec-st.tv_sec) + (1e-6)*(en.tv_usec-st.tv_usec));
-	//sgmm_print_params(gmm);
-	sgmm_free(gmm);
+	gmm_print_params(gmm);
+	gmm_free(gmm);
 
 	// Free data
 	for (int t=0; t<N; t++)
