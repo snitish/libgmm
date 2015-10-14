@@ -43,7 +43,10 @@ GMM* gmm_new(int M, int D, const char *cov_type)
 	else if (strcmp(cov_type, "spherical") == 0)
 		gmm->cov_type = SPHERICAL;
 	else
+	{
+		IPrintf("WARNING: Invalid cov_type specified. Defaulting to DIAGONAL.\n");
 		gmm->cov_type = DIAGONAL;
+	}
 
 	// Allocate memory for GMM parameters
 	gmm->weights = malloc(gmm->M*sizeof(double));
@@ -83,7 +86,10 @@ void gmm_set_initialization_method(GMM *gmm, const char *method)
 	else if (strcmp(method, "kmeans") == 0)
 		gmm->init_method = KMEANS;
 	else
+	{
+		IPrintf("WARNING: Invalid init_method specified. Defaulting to RANDOM.\n");
 		gmm->init_method = RANDOM;
+	}
 }
 
 void gmm_fit(GMM *gmm, const double * const *X, int N)

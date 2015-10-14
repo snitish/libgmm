@@ -1,10 +1,10 @@
 /*
- *	trainSphericalGMM.c
+ *	trainGMM.c
  *
- *	MEX wrapper for libsgmm
+ *	MEX wrapper for libgmm
  *
  *	Usage:
- *		[gmm] = trainSphericalGMM(X, k, varargin)
+ *		[gmm] = trainGMM(X, k, varargin)
  */
 
 #include "mex.h"
@@ -21,19 +21,19 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	// Make sure there are at least two input arguments
 	if (nrhs < 2)
 	{
-		mexErrMsgIdAndTxt("trainSphericalGMM:nrhs", "At least two inputs required.");
+		mexErrMsgIdAndTxt("trainGMM:nrhs", "At least two inputs required.");
 	}
 
 	// Make sure the first argument is a double matrix
 	if (!mxIsDouble(prhs[0]) || mxIsComplex(prhs[0]) || mxGetNumberOfDimensions(prhs[0]) > 2)
 	{
-		mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "Training data (X) must be a 2D matrix of doubles.");
+		mexErrMsgIdAndTxt("trainGMM:invalidArgument", "Training data (X) must be a 2D matrix of doubles.");
 	}
 
 	// Make sure the second argument is a scalar
 	if( !mxIsDouble(prhs[1]) || mxIsComplex(prhs[1]) || mxGetNumberOfElements(prhs[1]) != 1)
 	{
-		mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "Number of components (k) must be a scalar.");
+		mexErrMsgIdAndTxt("trainGMM:invalidArgument", "Number of components (k) must be a scalar.");
 	}
 
 	/* ------------------------------------------------- Validate output arguments */
@@ -41,7 +41,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	// Make sure there is at most one output argument
 	if (nlhs > 1)
 	{
-		mexErrMsgIdAndTxt("trainSphericalGMM:nlhs", "The function returns only one output variable.");
+		mexErrMsgIdAndTxt("trainGMM:nlhs", "The function returns only one output variable.");
 	}
 
 	/* ------------------------------------------------------- Get input arguments */
@@ -56,6 +56,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	double reg = 0.000001;
 	int max_iter = 1000;
 	char init_method[20]; strcpy(init_method, "random");
+	char cov_type[20]; strcpy(cov_type, "diagonal");
 	char error_msg[200];
 	if (nrhs > 2)
 	{
@@ -65,7 +66,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 			// Make sure prhs[i_rhs] is a string
 			if (!mxIsChar(prhs[i_rhs]))
 			{
-				mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "Optional argument name must be a string.");
+				mexErrMsgIdAndTxt("trainGMM:invalidArgument", "Optional argument name must be a string.");
 			}
 
 			// Get argument name
@@ -76,7 +77,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 			if (i_rhs + 1 >= nrhs)
 			{
 				sprintf(error_msg, "Expecting value for parameter '%s'", arg_name);
-				mexErrMsgIdAndTxt("trainSphericalGMM:argumentMissing", error_msg);
+				mexErrMsgIdAndTxt("trainGMM:argumentMissing", error_msg);
 			}
 
 			// Parse argument name and get value
@@ -85,7 +86,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 				// Make sure argument value is a scalar
 				if( !mxIsDouble(prhs[i_rhs + 1]) || mxIsComplex(prhs[i_rhs + 1]) || mxGetNumberOfElements(prhs[i_rhs + 1]) != 1)
 				{
-					mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "RegularizationValue must be a scalar.");
+					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "RegularizationValue must be a scalar.");
 				}
 				reg = mxGetScalar(prhs[i_rhs+1]);
 			}
@@ -94,7 +95,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 				// Make sure argument value is a scalar
 				if( !mxIsDouble(prhs[i_rhs + 1]) || mxIsComplex(prhs[i_rhs + 1]) || mxGetNumberOfElements(prhs[i_rhs + 1]) != 1)
 				{
-					mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "ConvergenceTol must be a scalar.");
+					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "ConvergenceTol must be a scalar.");
 				}
 				tol = mxGetScalar(prhs[i_rhs+1]);
 			}
@@ -103,7 +104,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 				// Make sure argument value is a scalar
 				if( !mxIsDouble(prhs[i_rhs + 1]) || mxIsComplex(prhs[i_rhs + 1]) || mxGetNumberOfElements(prhs[i_rhs + 1]) != 1)
 				{
-					mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "MaxIter must be a scalar.");
+					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "MaxIter must be a scalar.");
 				}
 				max_iter = mxGetScalar(prhs[i_rhs+1]);
 			}
@@ -112,14 +113,23 @@ void mexFunction(int nlhs, mxArray *plhs[],
 				// Make sure argument value is a string
 				if( !mxIsChar(prhs[i_rhs + 1]))
 				{
-					mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", "InitMethod must be a string.");
+					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "InitMethod must be a string.");
 				}
 				mxGetString(prhs[i_rhs+1], init_method, (mwSize) 20);
+			}
+			else if (strcmp(arg_name, "CovType") == 0)
+			{
+				// Make sure argument value is a string
+				if( !mxIsChar(prhs[i_rhs + 1]))
+				{
+					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "InitMethod must be a string.");
+				}
+				mxGetString(prhs[i_rhs+1], cov_type, (mwSize) 20);
 			}
 			else
 			{
 				sprintf(error_msg, "Unknown parameter '%s'", arg_name);
-				mexErrMsgIdAndTxt("trainSphericalGMM:invalidArgument", error_msg);
+				mexErrMsgIdAndTxt("trainGMM:invalidArgument", error_msg);
 			}
 
 			i_rhs += 2;
@@ -138,12 +148,12 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	/* ------------------------------------------------------------ Train the SGMM */	
 
 	// Train the SGMM
-	SGMM *gmm = sgmm_new(M, D);
-	sgmm_set_convergence_tol(gmm, tol);
-	sgmm_set_regularization_value(gmm, reg);
-	sgmm_set_max_iter(gmm, max_iter);
-	sgmm_set_initialization_method(gmm, init_method);
-	sgmm_fit(gmm, X, N);
+	GMM *gmm = sgmm_new(M, D, cov_type);
+	gmm_set_convergence_tol(gmm, tol);
+	gmm_set_regularization_value(gmm, reg);
+	gmm_set_max_iter(gmm, max_iter);
+	gmm_set_initialization_method(gmm, init_method);
+	gmm_fit(gmm, X, N);
 
 	/* ------------------------------------------------ Build output GMM structure */
 
@@ -177,7 +187,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	// Add "covars" field to structure
 	mxArray *mx_covars = mxCreateDoubleMatrix(M, 1, mxREAL);
 	p = mxGetPr(mx_covars);
-	memcpy(p, gmm->vars, M*sizeof(double));
+	int cov_len = (gmm->cov_type == SPHERICAL)? 1 : D;
+	for (int k=0; k<M; k++)
+		for (int i=0; i<cov_len; i++)
+			p[k+i*M] = gmm->covars[k][i];
 	mxSetField(plhs[0], 0, "covars", mx_covars);
 
 	/* ------------------------------------------------------------------- Cleanup */
