@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+ #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -14,7 +14,7 @@ int main()
 	FILE *fp = fopen(data_filenm, "r");
 	if (fp == NULL)
 	{
-		printf("ERROR: File 'sample_data.txt' not found.\n");
+		printf("ERROR: File 'sample_data.txt' not found.\nRun scripts/generate_data.py to generate sample data.\n");
 		exit(1);
 	}
 	int N = 0, D = 0;

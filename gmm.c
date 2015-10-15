@@ -111,7 +111,7 @@ void gmm_fit(GMM *gmm, const double * const *X, int N)
 		llh = _gmm_em_step(gmm, X, N);
 		//if (i_iter%20 == 0)
 		IPrintf("Iter = %d, LLH = %lf\n", i_iter+1, llh);
-
+		
 		// Check for convergence
 		if (i_iter > 2 && fabs((llh - llh_prev)/llh_prev) < gmm->tol)
 		{
@@ -160,7 +160,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 
 	// Initialize component weights to same value
 	for (int k=0; k<gmm->M; k++)
-		gmm->weights[k] += 1.0/gmm->M;
+		gmm->weights[k] = 1.0/gmm->M;
 	
 	// Initialize component variances to data variance
 	double *mean = malloc(gmm->D*sizeof(double));
@@ -185,7 +185,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 	{
 		double var = 0;
 		for (int t=0; t<N; t++)
-			var += pow(_gmm_vec_l2_dist(X[t], mean, gmm->D), 2);
+			var += _gmm_pow2(_gmm_vec_l2_dist(X[t], mean, gmm->D));
 		var = var/(N*gmm->D);
 		for (int k=0; k<gmm->M; k++)
 			gmm->covars[k][0] = var;	
