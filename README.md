@@ -21,13 +21,14 @@ A library for training Gaussian Mixture Models written in C.
 - MATLAB wrapper
 
  ```
- gmm = trainSphericalGMM(X, k, 'Name', 'Value', ...);
+ gmm = trainGMM(X, k, 'Name', 'Value', ...);
  ```
  Where,<br>
  X = NxD data matrix containing N data points, each of length D<br>
  k = Number of GMM components
  
  Optional name-value pairs:
+ - CovType = Covariance matrix type: "diagonal" or "spherical". (Default "diagonal")
  - MaxIter = Maximum number of EM iterations. (Default 1000)
  - ConvergenceTol = Convergence tolerance. (Default 1e-6)
  - RegularizationValue = Regularization Value (small value added to covariance matrix to prevent it from being singular). (Default 1e-6)
