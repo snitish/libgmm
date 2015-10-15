@@ -122,7 +122,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 				// Make sure argument value is a string
 				if( !mxIsChar(prhs[i_rhs + 1]))
 				{
-					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "InitMethod must be a string.");
+					mexErrMsgIdAndTxt("trainGMM:invalidArgument", "CovType must be a string.");
 				}
 				mxGetString(prhs[i_rhs+1], cov_type, (mwSize) 20);
 			}
