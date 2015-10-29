@@ -1,5 +1,5 @@
 CC ?= gcc
-CFLAGS = -std=c99 -O3
+CFLAGS = -std=c99 -Wall -O3 -fPIC
 AR ?= ar
 
 all: test lib

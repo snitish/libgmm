@@ -4,3 +4,5 @@
 sample_data.txt
 test
 matlab/*.mex*
+python/gmm.so
+python/build/*
