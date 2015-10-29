@@ -13,7 +13,7 @@ A library for training Gaussian Mixture Models written in C.
  make
  ```
 - To build the MATLAB wrapper, run matlab/make.m from the MATLAB console.
-- To build the Python wrapper, navigate to the libgmm/python directory using the terminal and type
+- To build and the Python wrapper, navigate to the libgmm/python directory using the terminal and type
 
  ```
  python setup.py install
