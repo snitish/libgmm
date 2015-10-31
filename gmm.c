@@ -111,6 +111,12 @@ void gmm_fit(GMM *gmm, const double * const *X, int N)
 		llh = _gmm_em_step(gmm, X, N);
 		//if (i_iter%20 == 0)
 		IPrintf("Iter = %d, LLH = %lf\n", i_iter+1, llh);
+		if ((llh > 0) == 0 && (llh <= 0) == 0)
+		{
+			IPrintf("WARNING: Encountered NaN value at iteration: %d\n", i_iter+1);
+			gmm_print_params(gmm);
+			break;
+		}
 		
 		// Check for convergence
 		if (i_iter > 2 && fabs((llh - llh_prev)/llh_prev) < gmm->tol)
@@ -163,7 +169,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 		gmm->weights[k] = 1.0/gmm->M;
 	
 	// Initialize component variances to data variance
-	double *mean = malloc(gmm->D*sizeof(double));
+	double *mean = calloc(gmm->D, sizeof(double));
 	for (int t=0; t<N; t++)
 		_gmm_vec_add(mean, X[t], 1, 1, gmm->D);
 	_gmm_vec_divide_by_scalar(mean, N, gmm->D);
