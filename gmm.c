@@ -133,6 +133,24 @@ void gmm_fit(GMM *gmm, const double * const *X, int N)
 	free(gmm->P_k_giv_xt);
 }
 
+double gmm_score(GMM *gmm, const double * const *X, int N)
+{
+	// Allocate memory for storing membership probabilities P(k | x_t)
+	gmm->P_k_giv_xt = malloc(gmm->M*sizeof(double *));
+	for (int k = 0; k < gmm->M; k++)
+		gmm->P_k_giv_xt[k] = malloc(N*sizeof(double));
+
+	// Compute log likellihood
+	double llh = _gmm_compute_membership_prob(gmm, X, N);
+	
+	// Free memory used for storing membership probabilities
+	for (int k = 0; k < gmm->M; k++)
+		free(gmm->P_k_giv_xt[k]);
+	free(gmm->P_k_giv_xt);
+
+	return llh;
+}
+
 // TODO: Other initialization methods
 void _gmm_init_params(GMM *gmm, const double * const *X, int N)
 {

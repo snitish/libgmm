@@ -8,7 +8,7 @@ X = np.loadtxt('../sample_data.txt')
 
 # Train GMM using libgmm
 st = time.time()
-g1 = gmm.GMM(k=3, CovType='diagonal')
+g1 = gmm.GMM(k=3, CovType='diagonal', InitMethod='kmeans')
 g1.fit(X)
 en = time.time()
 print 'time1 = ' + str(en-st) + ' s'

@@ -77,6 +77,11 @@ void gmm_set_initialization_method(GMM *gmm, const char *method);
 void gmm_fit(GMM *gmm, const double * const *X, int N);
 
 /*
+ *	Function to score a set of data points using the GMM
+ */
+double gmm_score(GMM *gmm, const double * const *X, int N);
+
+/*
  *	Function to print the GMM parameters
  */
 void gmm_print_params(const GMM *gmm);

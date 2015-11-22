@@ -63,6 +63,8 @@ int main()
 	gettimeofday(&en, NULL);
 	printf("Time elapsed = %lf s\n", (en.tv_sec-st.tv_sec) + (1e-6)*(en.tv_usec-st.tv_usec));
 	gmm_print_params(gmm);
+	double llh = gmm_score(gmm, X, N);
+	printf("Score (LLH) = %lf\n", llh);
 	gmm_free(gmm);
 
 	// Free data
