@@ -134,6 +134,85 @@ GMM_fit(GMMObject *self, PyObject *args, PyObject *keywds)
 	return Py_BuildValue("");
 }
 
+static PyObject *
+GMM_score(GMMObject *self, PyObject *args, PyObject *keywds)
+{
+	// Parse the arguments
+	static char *kwlist[] = {"X", 
+							 NULL};
+	PyObject *X_obj;
+	if (!PyArg_ParseTupleAndKeywords(args, keywds, "O", kwlist, &X_obj))
+	{
+		return NULL;
+	}
+
+	// Get data matrix from numpy array
+	PyArrayObject *X_array = (PyArrayObject *) PyArray_ContiguousFromObject(X_obj, PyArray_DOUBLE, 2, 2);
+	if (X_array == NULL)
+	{
+		printf("Data matrix (X) in bad format.\n");
+		return NULL;
+	}
+	if (PyArray_NDIM(X_array) != 2)
+	{
+		printf("Data matrix (X) must be a 2D matrix.\n");
+		return NULL;
+	}
+	int N = (int) PyArray_DIM(X_array, 0);
+	int D = (int) PyArray_DIM(X_array, 1);
+	if (D != PyArray_DIM(self->means, 1))
+	{
+		printf("Invalid dimensions of data matrix X.\n");
+		return NULL;
+	}
+	double **X = malloc(N*sizeof(double *));
+	for (int t=0; t<N; t++)
+		X[t] = (double *) X_array->data + D*t;
+
+	// Initialize GMM from parameters
+	GMM *gmm = malloc(sizeof(GMM));
+	gmm->M = self->k;
+	gmm->D = D;
+	int covar_len = 0;
+	const char *cov_type = PyString_AsString(self->cov_type);
+	if (strcmp(cov_type, "spherical") == 0)
+	{
+		covar_len = 1;
+		gmm->cov_type = SPHERICAL;
+	}
+	else if (strcmp(cov_type, "diagonal") == 0)
+	{
+		covar_len = D;
+		gmm->cov_type = DIAGONAL;
+	}
+	double **means = malloc(self->k*sizeof(double *));
+	double **covars = malloc(self->k*sizeof(double *));
+	for (int k=0; k<self->k; k++)
+	{
+		means[k] = (double *) self->means->data + k*D;
+		covars[k] = (double *) self->covars->data + k*covar_len;
+	}
+	gmm->weights = (double *) self->weights->data;
+	gmm->means = means;
+	gmm->covars = covars;
+	
+	// Score the data points
+	double llh = gmm_score(gmm, X, N);
+
+	// Free the GMM object
+	free(gmm);
+
+	// Free the parameter arrays
+	free(means);
+	free(covars);
+
+	// Free the data matrix and pyobjects
+	free(X);
+	Py_DECREF(X_array);
+
+	return Py_BuildValue("");
+}
+
 static PyMemberDef GMM_members[] = {
 	{"weights", T_OBJECT, offsetof(GMMObject, weights), 0, "Component weights"},
 	{"means", T_OBJECT, offsetof(GMMObject, means), 0, "Component means"},
@@ -149,6 +228,7 @@ static PyMemberDef GMM_members[] = {
 
 static PyMethodDef GMM_methods[] = {
 	{"fit", (PyCFunction) GMM_fit, METH_VARARGS | METH_KEYWORDS, "Fit the GMM on the data."},
+	{"score", (PyCFunction) GMM_score, METH_VARARGS | METH_KEYWORDS, "Scores the data using the GMM."},
 	{NULL}
 };
 
