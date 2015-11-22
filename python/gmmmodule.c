@@ -210,7 +210,7 @@ GMM_score(GMMObject *self, PyObject *args, PyObject *keywds)
 	free(X);
 	Py_DECREF(X_array);
 
-	return Py_BuildValue("");
+	return Py_BuildValue("d", llh);
 }
 
 static PyMemberDef GMM_members[] = {

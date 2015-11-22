@@ -10,7 +10,8 @@ X = np.loadtxt('../sample_data.txt')
 st = time.time()
 g1 = gmm.GMM(k=3, CovType='diagonal', InitMethod='kmeans')
 g1.fit(X)
-g1.score(X)
+llh = g1.score(X)
+print 'Score = ' + str(llh)
 en = time.time()
 print 'time1 = ' + str(en-st) + ' s'
 
