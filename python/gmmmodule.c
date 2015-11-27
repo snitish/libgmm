@@ -77,7 +77,7 @@ GMM_fit(GMMObject *self, PyObject *args, PyObject *keywds)
 		return NULL;
 	}
 
-	// Get data matrix from numpy array
+	// Validate data matrix
 	PyArrayObject *X_array = (PyArrayObject *) PyArray_ContiguousFromObject(X_obj, PyArray_DOUBLE, 2, 2);
 	if (X_array == NULL)
 	{
@@ -91,9 +91,7 @@ GMM_fit(GMMObject *self, PyObject *args, PyObject *keywds)
 	}
 	int N = (int) PyArray_DIM(X_array, 0);
 	int D = (int) PyArray_DIM(X_array, 1);
-	double **X = malloc(N*sizeof(double *));
-	for (int t=0; t<N; t++)
-		X[t] = (double *) X_array->data + D*t;
+	double *X = (double *) X_array->data;
 
 	// Train the GMM
 	GMM *gmm = gmm_new(self->k, D, PyString_AsString(self->cov_type));
@@ -127,8 +125,7 @@ GMM_fit(GMMObject *self, PyObject *args, PyObject *keywds)
 	// Free the GMM object
 	gmm_free(gmm);
 
-	// Free the data matrix and pyobjects
-	free(X);
+	// Free the pyobjects
 	Py_DECREF(X_array);
 
 	return Py_BuildValue("");
@@ -146,7 +143,7 @@ GMM_score(GMMObject *self, PyObject *args, PyObject *keywds)
 		return NULL;
 	}
 
-	// Get data matrix from numpy array
+	// Validate data matrix
 	PyArrayObject *X_array = (PyArrayObject *) PyArray_ContiguousFromObject(X_obj, PyArray_DOUBLE, 2, 2);
 	if (X_array == NULL)
 	{
@@ -165,9 +162,7 @@ GMM_score(GMMObject *self, PyObject *args, PyObject *keywds)
 		printf("Invalid dimensions of data matrix X.\n");
 		return NULL;
 	}
-	double **X = malloc(N*sizeof(double *));
-	for (int t=0; t<N; t++)
-		X[t] = (double *) X_array->data + D*t;
+	double *X = (double *) X_array->data;
 
 	// Initialize GMM from parameters
 	GMM *gmm = malloc(sizeof(GMM));
@@ -206,8 +201,7 @@ GMM_score(GMMObject *self, PyObject *args, PyObject *keywds)
 	free(means);
 	free(covars);
 
-	// Free the data matrix and pyobjects
-	free(X);
+	// Free the pyobjects
 	Py_DECREF(X_array);
 
 	return Py_BuildValue("d", llh);

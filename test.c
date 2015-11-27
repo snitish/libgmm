@@ -34,20 +34,18 @@ int main()
 		D++;
 		token = strtok(NULL, " \n");
 	}
-	double **X = (double **) malloc(N*sizeof(double *));
-	for (int t=0; t<N; t++)
-		X[t] = (double *) malloc(D*sizeof(double));
+	double *X = malloc(N*D*sizeof(double));
 	rewind(fp);
 	line = NULL; len = 0;
 	for (int t=0; t<N; t++)
 	{
 		getline(&line, &len, fp);
 		token = strtok(line, " \n");
-		X[t][0] = atof(token);
+		X[D*t+0] = atof(token);
 		for (int i=1; i<D; i++)
 		{
 			token = strtok(NULL, " \n");
-			X[t][i] = atof(token);
+			X[D*t+i] = atof(token);
 		}
 	}
 	fclose(fp);
@@ -68,8 +66,6 @@ int main()
 	gmm_free(gmm);
 
 	// Free data
-	for (int t=0; t<N; t++)
-		free(X[t]);
 	free(X);
 
 	return 0;

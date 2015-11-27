@@ -61,6 +61,7 @@ GMM* gmm_new(int M, int D, const char *cov_type)
 			gmm->covars[k] = malloc(1*sizeof(double));
 	}
 
+
 	return gmm;
 }
 
@@ -92,7 +93,7 @@ void gmm_set_initialization_method(GMM *gmm, const char *method)
 	}
 }
 
-void gmm_fit(GMM *gmm, const double * const *X, int N)
+void gmm_fit(GMM *gmm, const double *X, int N)
 {
 	// Initialize GMM parameters
 	_gmm_init_params(gmm, X, N);
@@ -133,7 +134,7 @@ void gmm_fit(GMM *gmm, const double * const *X, int N)
 	free(gmm->P_k_giv_xt);
 }
 
-double gmm_score(GMM *gmm, const double * const *X, int N)
+double gmm_score(GMM *gmm, const double *X, int N)
 {
 	// Allocate memory for storing membership probabilities P(k | x_t)
 	gmm->P_k_giv_xt = malloc(gmm->M*sizeof(double *));
@@ -152,7 +153,7 @@ double gmm_score(GMM *gmm, const double * const *X, int N)
 }
 
 // TODO: Other initialization methods
-void _gmm_init_params(GMM *gmm, const double * const *X, int N)
+void _gmm_init_params(GMM *gmm, const double *X, int N)
 {
 	if (gmm->init_method == RANDOM)
 	{
@@ -172,14 +173,14 @@ void _gmm_init_params(GMM *gmm, const double * const *X, int N)
 }
 
 // TODO: Unique sampling of data points for initializing component means
-void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
+void _gmm_init_params_random(GMM *gmm, const double *X, int N)
 {
 	// Initialize means to randomly chosen samples
 	srand(time(NULL));
 	for (int k=0; k<gmm->M; k++)
 	{
 		int r = rand()%N;
-		memcpy(gmm->means[k], X[r], gmm->D*sizeof(double));
+		memcpy(gmm->means[k], &X[gmm->D*r], gmm->D*sizeof(double));
 	}
 
 	// Initialize component weights to same value
@@ -189,7 +190,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 	// Initialize component variances to data variance
 	double *mean = calloc(gmm->D, sizeof(double));
 	for (int t=0; t<N; t++)
-		_gmm_vec_add(mean, X[t], 1, 1, gmm->D);
+		_gmm_vec_add(mean, &X[gmm->D*t], 1, 1, gmm->D);
 	_gmm_vec_divide_by_scalar(mean, N, gmm->D);
 	if (gmm->cov_type == DIAGONAL)
 	{
@@ -198,7 +199,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 		{
 			vars[i] = 0;
 			for (int t=0; t<N; t++)
-				vars[i] += _gmm_pow2(X[t][i] - mean[i]);
+				vars[i] += _gmm_pow2(X[gmm->D*t+i] - mean[i]);
 			vars[i] = vars[i]/N;
 		}
 		for (int k=0; k<gmm->M; k++)
@@ -209,7 +210,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 	{
 		double var = 0;
 		for (int t=0; t<N; t++)
-			var += _gmm_pow2(_gmm_vec_l2_dist(X[t], mean, gmm->D));
+			var += _gmm_pow2(_gmm_vec_l2_dist(&X[gmm->D*t], mean, gmm->D));
 		var = var/(N*gmm->D);
 		for (int k=0; k<gmm->M; k++)
 			gmm->covars[k][0] = var;	
@@ -222,7 +223,7 @@ void _gmm_init_params_random(GMM *gmm, const double * const *X, int N)
 // TODO: Handle empty clusters in K-means
 // TODO: Unique sampling of data points for initializing component means
 // TODO: Make K-means more efficient
-void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
+void _gmm_init_params_kmeans(GMM *gmm, const double *X, int N)
 {
 	const int num_iter = 10;
 
@@ -231,7 +232,7 @@ void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
 	for (int k=0; k<gmm->M; k++)
 	{
 		int r = rand()%N;
-		memcpy(gmm->means[k], X[r], gmm->D*sizeof(double));
+		memcpy(gmm->means[k], &X[gmm->D*r], gmm->D*sizeof(double));
 	}
 
 	// K-means iterative algorithm
@@ -243,11 +244,11 @@ void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
 		// Find assiciation of each data point
 		for (int t = 0; t < N; t++)
 		{
-			double min_dist = _gmm_vec_l2_dist(X[t], gmm->means[0], gmm->D);
+			double min_dist = _gmm_vec_l2_dist(&X[gmm->D*t], gmm->means[0], gmm->D);
 			associations[t] = 0;
 			for (int k=1; k<gmm->M; k++)
 			{
-				double dist = _gmm_vec_l2_dist(X[t], gmm->means[k], gmm->D);
+				double dist = _gmm_vec_l2_dist(&X[gmm->D*t], gmm->means[k], gmm->D);
 				if (dist < min_dist)
 				{
 					min_dist = dist;
@@ -266,7 +267,7 @@ void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
 				if (associations[t] == k)
 				{
 					nk++;
-					_gmm_vec_add(gmm->means[k], X[t], 1, 1, gmm->D);
+					_gmm_vec_add(gmm->means[k], &X[gmm->D*t], 1, 1, gmm->D);
 				}
 			}
 			_gmm_vec_divide_by_scalar(gmm->means[k], nk, gmm->D);
@@ -293,11 +294,11 @@ void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
 			{
 				nk++;
 				if (gmm->cov_type == SPHERICAL)
-					gmm->covars[k][0] += _gmm_pow2(_gmm_vec_l2_dist(X[t], gmm->means[k], gmm->D));
+					gmm->covars[k][0] += _gmm_pow2(_gmm_vec_l2_dist(&X[gmm->D*t], gmm->means[k], gmm->D));
 				else if (gmm->cov_type == DIAGONAL)
 				{
 					for (int i=0; i<gmm->D; i++)
-						gmm->covars[k][i] += _gmm_pow2(X[t][i] - gmm->means[k][i]);
+						gmm->covars[k][i] += _gmm_pow2(X[gmm->D*t+i] - gmm->means[k][i]);
 				}
 			}
 		}
@@ -322,7 +323,7 @@ void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N)
 	free(associations);
 }
 
-double _gmm_em_step(GMM *gmm, const double * const *X, int N)
+double _gmm_em_step(GMM *gmm, const double *X, int N)
 {
 	double llh;
 
@@ -339,7 +340,7 @@ double _gmm_em_step(GMM *gmm, const double * const *X, int N)
 	return llh;
 }
 
-double _gmm_compute_membership_prob(GMM *gmm, const double * const *X, int N)
+double _gmm_compute_membership_prob(GMM *gmm, const double *X, int N)
 {
 	double llh = 0;
 
@@ -350,7 +351,7 @@ double _gmm_compute_membership_prob(GMM *gmm, const double * const *X, int N)
 		double max = -1;
 		for (int k = 0; k < gmm->M; k++)
 		{
-			gmm->P_k_giv_xt[k][t] = log(gmm->weights[k]) + _gmm_log_gaussian_pdf(X[t], gmm->means[k], gmm->covars[k], gmm->D, gmm->cov_type);
+			gmm->P_k_giv_xt[k][t] = log(gmm->weights[k]) + _gmm_log_gaussian_pdf(&X[gmm->D*t], gmm->means[k], gmm->covars[k], gmm->D, gmm->cov_type);
 			if (gmm->P_k_giv_xt[k][t] > max)
 				max = gmm->P_k_giv_xt[k][t];
 		}
@@ -371,7 +372,7 @@ double _gmm_compute_membership_prob(GMM *gmm, const double * const *X, int N)
 	return llh;
 }
 
-void _gmm_update_params(GMM *gmm, const double * const *X, int N)
+void _gmm_update_params(GMM *gmm, const double *X, int N)
 {
 	if (gmm->cov_type == SPHERICAL)
 	{
@@ -384,8 +385,8 @@ void _gmm_update_params(GMM *gmm, const double * const *X, int N)
 			for (int t=0; t<N; t++)
 			{
 				sum_P_k += gmm->P_k_giv_xt[k][t];
-				sum_xxP_k += _gmm_vec_dot_prod(X[t], X[t], gmm->D) * gmm->P_k_giv_xt[k][t];
-				_gmm_vec_add(gmm->means[k], X[t], 1, gmm->P_k_giv_xt[k][t], gmm->D);
+				sum_xxP_k += _gmm_vec_dot_prod(&X[gmm->D*t], &X[gmm->D*t], gmm->D) * gmm->P_k_giv_xt[k][t];
+				_gmm_vec_add(gmm->means[k], &X[gmm->D*t], 1, gmm->P_k_giv_xt[k][t], gmm->D);
 			}
 			_gmm_vec_divide_by_scalar(gmm->means[k], sum_P_k, gmm->D);
 			gmm->weights[k] = sum_P_k/N;
@@ -404,7 +405,7 @@ void _gmm_update_params(GMM *gmm, const double * const *X, int N)
 			for (int t=0; t<N; t++)
 			{
 				sum_P_k += gmm->P_k_giv_xt[k][t];
-				_gmm_vec_add(gmm->means[k], X[t], 1, gmm->P_k_giv_xt[k][t], gmm->D);
+				_gmm_vec_add(gmm->means[k], &X[gmm->D*t], 1, gmm->P_k_giv_xt[k][t], gmm->D);
 			}
 			gmm->weights[k] = sum_P_k/N;
 			_gmm_vec_divide_by_scalar(gmm->means[k], sum_P_k, gmm->D);
@@ -413,7 +414,7 @@ void _gmm_update_params(GMM *gmm, const double * const *X, int N)
 			for (int t=0; t<N; t++)
 			{
 				for (int i=0; i<gmm->D; i++)
-					gmm->covars[k][i] += gmm->P_k_giv_xt[k][t]*_gmm_pow2(X[t][i] - gmm->means[k][i]);
+					gmm->covars[k][i] += gmm->P_k_giv_xt[k][t]*_gmm_pow2(X[gmm->D*t+i] - gmm->means[k][i]);
 			}
 			_gmm_vec_divide_by_scalar(gmm->covars[k], sum_P_k, gmm->D);
 			for (int i=0; i<gmm->D; i++)

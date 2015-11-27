@@ -41,7 +41,7 @@ typedef struct _GMM
 	/* --------------------------- GMM Parameters */
 	double *weights;			// Component weights
 	double **means; 			// Component means
-	double **covars;			// Component variances
+	double **covars;			// Component covariances
 	/* ---------------------- Auxiliary variables */
 	double **P_k_giv_xt;		// Membership probability matrix
 } GMM;
@@ -74,12 +74,12 @@ void gmm_set_initialization_method(GMM *gmm, const char *method);
 /*
  *	Function to fit a GMM on a given set of data points
  */
-void gmm_fit(GMM *gmm, const double * const *X, int N);
+void gmm_fit(GMM *gmm, const double *X, int N);
 
 /*
  *	Function to score a set of data points using the GMM
  */
-double gmm_score(GMM *gmm, const double * const *X, int N);
+double gmm_score(GMM *gmm, const double *X, int N);
 
 /*
  *	Function to print the GMM parameters
@@ -94,12 +94,12 @@ void gmm_free(GMM *gmm);
 /*
  *	Internal functions (do not call them!)
  */
-void _gmm_init_params(GMM *gmm, const double * const *X, int N);
-void _gmm_init_params_random(GMM *gmm, const double * const *X, int N);
-void _gmm_init_params_kmeans(GMM *gmm, const double * const *X, int N);
-double _gmm_em_step(GMM *gmm, const double * const *X, int N);
-double _gmm_compute_membership_prob(GMM *gmm, const double * const *X, int N);
-void _gmm_update_params(GMM *gmm, const double * const *X, int N);
+void _gmm_init_params(GMM *gmm, const double *X, int N);
+void _gmm_init_params_random(GMM *gmm, const double *X, int N);
+void _gmm_init_params_kmeans(GMM *gmm, const double *X, int N);
+double _gmm_em_step(GMM *gmm, const double *X, int N);
+double _gmm_compute_membership_prob(GMM *gmm, const double *X, int N);
+void _gmm_update_params(GMM *gmm, const double *X, int N);
 double _gmm_log_gaussian_pdf(const double *x, const double *mean, const double *covar, int D, CovType cov_type);
 double _gmm_vec_l2_dist(const double *x, const double *y, int D);
 void _gmm_vec_add(double *x, const double *y, double a, double b, int D);
