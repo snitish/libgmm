@@ -46,7 +46,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
 	/* ------------------------------------------------------- Get input arguments */
 
-	double *X_v = mxGetPr(prhs[0]);
+	double *X = mxGetPr(prhs[0]);
 	int M = (int) (mxGetScalar(prhs[1]) + 0.5);
 	int N = mxGetM(prhs[0]);
 	int D = mxGetN(prhs[0]);
@@ -136,15 +136,6 @@ void mexFunction(int nlhs, mxArray *plhs[],
 		}
 	}
 	
-	// Reshape training data to matrix X
-	double **X = (double **) malloc(N*sizeof(double *));
-	for (int t=0; t<N; t++)
-	{	
-		X[t] = (double *) malloc(D*sizeof(double));
-		for (int i=0; i<D; i++)
-			X[t][i] = X_v[t + i*N];
-	}
-
 	/* ------------------------------------------------------------ Train the SGMM */	
 
 	// Train the SGMM
@@ -195,13 +186,8 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
 	/* ------------------------------------------------------------------- Cleanup */
 
-	// Free X
-	for (int t=0; t<N; t++)
-		free(X[t]);
-	free(X);
-
 	// Free gmm
 	sgmm_free(gmm);
-
+	
 }
 
