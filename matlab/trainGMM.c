@@ -138,8 +138,8 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	
 	/* ------------------------------------------------------------ Train the SGMM */	
 
-	// Train the SGMM
-	GMM *gmm = sgmm_new(M, D, cov_type);
+	// Train the GMM
+	GMM *gmm = gmm_new(M, D, cov_type);
 	gmm_set_convergence_tol(gmm, tol);
 	gmm_set_regularization_value(gmm, reg);
 	gmm_set_max_iter(gmm, max_iter);
@@ -187,7 +187,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 	/* ------------------------------------------------------------------- Cleanup */
 
 	// Free gmm
-	sgmm_free(gmm);
+	gmm_free(gmm);
 	
 }
 
